@@ -1,0 +1,94 @@
+options {
+  DEBUG_PARSER = false;
+}
+
+PARSER_BEGIN(ExpressionParser)
+ public class ExpressionParser {
+  public static void main(String[] args) {
+    try {
+      Exp exp = new ExpressionParser(System.in).Parse();
+	  EvalVisitor evalVisitor = new EvalVisitor();
+	  System.out.println(exp.accept(evalVisitor));
+    }
+    catch(ParseException ex) {
+      System.out.println("Fail!\n" + ex.getMessage());
+    }
+  }
+}
+PARSER_END(ExpressionParser)
+
+TOKEN: {
+   <PLUS: "+">
+ | <MINUS: "-">
+ | <TIMES: "*">
+ | <DIVIDE: "/">
+ | <RPR: ")">
+ | <LPR: "(">
+ | <NUM: (["0"-"9"])+ >
+}
+
+SKIP: { " " | "\t" | "\r" | "\r\n" | "\n"}
+
+/*
+E - > A 
+
+A -> T ((+|-) T)*
+
+T -> (F|D) ((*|/) F)*
+
+F - > num 
+
+D - > "(" E ")"
+*/
+
+Exp Parse():
+{ Exp a;}
+{
+    a = E() (<EOF>) 
+  { return a; }
+}
+
+Exp E():
+{ Exp a, b; Token t;}
+{
+	 (a = A()  )
+  { return a; } 
+}
+
+Exp A():
+{ Exp a, b; int k = 1; }
+{
+	( <PLUS> | <MINUS> { k = -1; })? 
+	 a=T() { a = k > 0 ? a : new Times(a, new Num(-1+"")); }
+	 (
+	  <PLUS>  b=T() { a=new Plus(a, b);  }
+	 | <MINUS>  b=T() { a=new Minus(a, b); }
+	 )*
+	 { return a; }
+}
+
+Exp T() :
+{ Exp a, b;}
+{
+   (a=F()|a = D())
+ (
+   <TIMES> (b=F()|b = D()) { a=new Times(a, b);  }
+ | <DIVIDE> (b=F()|b = D()) { a=new Divide(a, b); }
+ )*
+ { return a; }
+}
+
+Exp F():
+{ Exp a, b; Token t;}
+{	    t=<NUM> { a = new Num(t.image); }
+	//|  a = D()
+	 // b =  E() { a = new Exp(a,b); } 
+      { return a; }
+}
+
+Exp D():
+{ Exp a, b; Token t;}
+{
+	<LPR> a = E() <RPR>
+   { return a; }
+}
