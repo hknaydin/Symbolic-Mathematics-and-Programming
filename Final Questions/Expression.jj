@@ -1,0 +1,150 @@
+options {
+  DEBUG_PARSER = false;
+}
+
+PARSER_BEGIN(ExpressionParser)
+ public class ExpressionParser {
+  public static void main(String[] args) {
+    try {
+      Exp exp = new ExpressionParser(System.in).Parse();
+	  EvalVisitor evalVisitor = new EvalVisitor();
+	  System.out.println(exp.accept(evalVisitor));
+    }
+    catch(ParseException ex) {
+      System.out.println("Fail!\n" + ex.getMessage());
+    }
+  }
+}
+PARSER_END(ExpressionParser)
+
+TOKEN: {
+   < PLUS: "+" >
+ | < MINUS: "-" >
+ | < TIMES: "*" >
+ | < DIVIDE: "/" >
+ | < MOD: "%" >
+ | < POWER: "^" >
+ | < RPR: "]">
+ | < LPR: "[">
+ | < PRR: ")">
+ | < PRL: "(">
+ | < NUM:  (["0"-"9"])+ >
+ | < COMMA: ",">
+ | < OK: "<-" >
+ | < VAR: (["a"-"z", "A"-"Z"])+ >
+ | < IKINOKTA: ".." >
+ | < DIK: "|" >
+}
+
+SKIP: { " " | "\t" | "\r" | "\r\n" | "\n"}
+
+/*
+E - > "[" A "|" C "]"
+
+A - > B (((+|-) B)*
+
+B -> (D|F) ((*|/) (D|F))*
+
+D - > (num | id)
+
+F - > "(" A ")"
+
+
+C - > id "<-" "[" G "]"
+
+G - > num ( ".." num | ("," G)? )
+*/
+
+Exp Parse() :
+{ Exp a;}
+{
+    a = E() (<EOF>) 
+  { return a; }
+}
+
+//E - > "[" A "|" C "]"
+Exp E() :
+{ Exp a, b;}
+{
+  <LPR> a = A() < DIK > b=C() {a=new Dik(a, b);}  <RPR>
+  {return a;}
+}
+
+//A - > B (((+|-) B)*
+Exp A():
+{ Exp a, b; int k=1;}
+{
+	( <PLUS> | <MINUS> { k = -1; })? 
+
+	a=B() { a = k > 0 ? a : new Times(a, new Num(-1+"")); }
+	
+	  (
+	     <PLUS>  b=B() { a=new Plus(a, b);  }
+	   | <MINUS>  b=B() { a=new Minus(a, b); }
+	 
+	  )*
+	
+	{ return a; }
+}
+
+//B -> (D|F) ((*|/) (D|F))*
+Exp B() :
+{ Exp a, b;}
+{
+   ( a=D() | a = F() )
+   
+   (
+      <TIMES> ( b=D() | b = F() ) { a=new Times(a, b);  }
+    | <DIVIDE> ( b=D() | b = F() ) { a=new Divide(a, b); }
+    | <MOD> ( b=D() | b = F() ) { a=new Mod(a, b); }
+    | <POWER> ( b=D() | b = F() ) { a=new Power(a, b); }
+        
+   )*
+   
+    { return a; }
+}
+
+//D - > (num | id)
+Exp D():
+{ Exp a, b; Token t;}
+{
+	  (	    t=<NUM> { a = new Num(t.image); }
+	   | 
+	    t = <VAR> {a = new Var(t.image); }
+	  )
+      { return a; }
+}
+
+//F - > "(" A ")"
+Exp F():
+{ Exp a, b;}
+{
+	<PRL> a = A() <PRR>
+   { return a; }
+}
+
+//C - > id "<-" "[" G "]"
+Exp C() :
+{ Exp a, b; Token t;}
+{ 
+	t = <VAR> {a = new Var(t.image); }
+	<OK> <LPR> b = G() <RPR> { return new Ok(a, b ); }
+}
+
+//G - > num ( ".." num | ("," G)? )
+Exp G() :
+{ Exp a, b; Token t, t1;}
+{ 
+	t=<NUM> {a = new Num(t.image); }
+
+	(
+	  <IKINOKTA> t1=<NUM> {b = new Num(t1.image); }
+	{return new IkiNokta(a, b);}
+	|
+	  (
+		<COMMA> b = G()
+		{a = new Comma(a, b);}
+	  )?
+	  { return a; }
+	)
+}
