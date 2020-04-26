@@ -1,0 +1,71 @@
+options {
+  DEBUG_PARSER = false;
+}
+
+PARSER_BEGIN(ArithmeticParser)
+ public class ArithmeticParser {
+  public static void main(String[] args) {
+    try {
+		Exp exp = new ArithmeticParser(System.in).Parse();
+		System.out.println(exp.eval());
+    }
+    catch(ParseException ex) {
+      System.out.println("Fail!\n" + ex.getMessage());
+    }
+  }
+}
+PARSER_END(ArithmeticParser)
+
+TOKEN: {
+   <PLUS: "+">
+ | <MINUS: "-">
+ | <TIMES: "*">
+ | <DIVIDE: "/">
+ | <EOL: "\n">
+ | <NUM: (["0"-"9"])+("."(["0"-"9"])+)?>
+}
+
+SKIP: { " " | "\t" | "\r" }
+
+/*
+E -> N | SR
+S -> NEO
+R -> EOR | (E)
+N -> num
+O -> "+" | "-" | "*" | "/"
+*/
+
+Exp Parse() :
+{ Exp e; }
+{
+	e = E() <EOL> { return e; }
+}
+
+Exp E() :
+{ Exp a, b; }
+{
+	a = N() (  b = S() 
+	( <PLUS> { a = new Plus(a, b); }
+	| <MINUS> { a = new Minus(a, b); }
+	| <TIMES> { a = new Times(a, b); }
+	| <DIVIDE> { a = new Divide(a, b); })
+	)* { return a; }
+}
+
+Exp S() :
+{ Exp a, b; }
+{                
+	a = N() ( b = S() 
+	( <PLUS> { a = new Plus(a, b); }
+	| <MINUS> { a = new Minus(a, b); }
+	| <TIMES> { a = new Times(a, b); }
+	| <DIVIDE> { a = new Divide(a, b); })
+	)? { return a; }
+}
+
+Exp N() :
+{ Token t; Exp e; }
+{
+	t = <NUM> { return new Number(Double.parseDouble(t.image)); }
+}
+
