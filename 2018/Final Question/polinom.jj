@@ -1,0 +1,82 @@
+options {
+  DEBUG_PARSER = false;
+}
+
+PARSER_BEGIN(PolinomParser)
+ public class PolinomParser {
+  public static void main(String[] args) {
+    try {
+      Poly poly = new PolinomParser(System.in).Parse();
+	  System.out.println(poly.toString());
+	  SimplifyVisitor simplifyVisitor = new SimplifyVisitor();
+	  System.out.println(poly.accept(simplifyVisitor));
+    }
+    catch(ParseException ex) {
+      System.out.println("Fail!\n" + ex.getMessage());
+    }
+  }
+}
+PARSER_END(PolinomParser)
+
+TOKEN: {
+   <PLUS: "+">
+ | <MINUS: "-">
+ | <LPR: "(">
+ | <RPR: ")">
+ | <EOL: "\n">
+ | <X: "x">
+ | <NUM: (["0"-"9"])+("."(["0"-"9"])+)?>
+}
+
+SKIP: { " " | "\t" | "\r" }
+
+/*
+*/
+
+Poly Parse() :
+{ Poly p; }
+{
+	p = R() ( <EOL> | <EOF> ) { return p; }
+}
+
+Poly R() :
+{ Poly p; }
+{
+	( p = S() | p = T() )
+	{ return p; }
+}
+
+Poly S() :
+{ Poly p1, p2; }
+{
+	<LPR> p1 = T() <RPR> ( p2 = S() { p1 = new Poly(p1, p2); } )?
+	{ return p1; }
+}
+
+Poly T() :
+{ Token t1 = new Token(); Token t2; Poly p; }
+{
+	{ t1.image = "1"; }
+	( <MINUS> { t1.image = "-1"; } )?
+	( t1 = <NUM> )? <X>  
+	( <PLUS> t2 = <NUM> { p = new Poly(Integer.parseInt(t1.image), Integer.parseInt(t2.image)); }
+	| <MINUS> t2 = <NUM> { p = new Poly(Integer.parseInt(t1.image), (-1) * Integer.parseInt(t2.image)); } )
+	{ return p; }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
